@@ -1,0 +1,39 @@
+from machine import Pin, PWM
+import utime
+import neopixel
+
+def map_angle(x):
+    """ Mapea un ángulo de 0° a 180° a un valor de ciclo de trabajo entre 25 y 125. """
+    return int((x - 0) * (125 - 25) / (180 - 0) + 25)
+
+# Configuración del servo en el pin 13
+servo = PWM(Pin(13), freq=50)
+
+# Configuración de los NeoPixels en el pin 15 con 16 LEDs
+np = neopixel.NeoPixel(Pin(14), 16)
+
+def fade_color(color1, color2, steps=50, delay=0.02):
+    """ Hace una transición suave entre dos colores. """
+    for step in range(steps + 1):
+        interpolated = (
+            int(color1[0] + (color2[0] - color1[0]) * step / steps),
+            int(color1[1] + (color2[1] - color1[1]) * step / steps),
+            int(color1[2] + (color2[2] - color1[2]) * step / steps)
+        )
+        for i in range(16):
+            np[i] = interpolated
+        np.write()
+        utime.sleep(delay)
+
+while True:
+    # Movimiento de 0° a 180° (fade de azul a rojo)
+    fade_color((0, 0, 255), (255, 0, 0))  # De azul a rojo
+    for angulo in range(0, 181, 5):  
+        servo.duty(map_angle(angulo))
+        utime.sleep(0.05)
+
+    # Movimiento de 180° a 0° (fade de rojo a azul)
+    fade_color((255, 0, 0), (0, 0, 255))  # De rojo a azul
+    for angulo in range(180, -1, -5):  
+        servo.duty(map_angle(angulo))
+        utime.sleep(0.05)
