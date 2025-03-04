@@ -1,0 +1,79 @@
+from machine import Pin, I2C
+import ssd1306
+import time
+import neopixel
+
+# Configuración de la pantalla OLED
+i2c = I2C(0, scl=Pin(22), sda=Pin(21))
+oled = ssd1306.SSD1306_I2C(128, 64, i2c)
+
+def update_display(msg1, msg2, msg3):
+    oled.fill(0)
+    oled.text(msg1, 16, 10)
+    oled.text(msg2, 40, 30)
+    oled.text(msg3, 56, 50)
+    oled.show()
+
+# Definir pines del motor
+STEP_PIN = 18
+DIR_PIN = 19
+NEOPIXEL_PIN = 5  # Pin para los NeoPixels
+
+# Configuración del motor
+STEPS_PER_REV = 150  # Pasos por revolución (ajustar según el motor)
+SILLAS = 16  # Número de sillas en la rueda
+
+stepper_pos = 0  # Inicializar la posición del motor
+
+# Configuración de pines
+step = Pin(STEP_PIN, Pin.OUT)
+direction = Pin(DIR_PIN, Pin.OUT)
+
+# Configuración de los NeoPixels
+np = neopixel.NeoPixel(Pin(NEOPIXEL_PIN), SILLAS)
+
+def fade_led(silla, color):
+    for i in range(0, 256, 25):  # Aumento progresivo de brillo
+        np[silla - 1] = (color[0] * i // 255, color[1] * i // 255, color[2] * i // 255)
+        np.write()
+        time.sleep(0.05)
+    for i in range(255, -1, -25):  # Disminución progresiva de brillo
+        np[silla - 1] = (color[0] * i // 255, color[1] * i // 255, color[2] * i // 255)
+        np.write()
+        time.sleep(0.05)
+
+def move_stepper(direct, steps, delay):
+    global stepper_pos
+    direction.value(direct) 
+    for _ in range(steps):
+        step.value(1)
+        time.sleep_us(delay)
+        step.value(0)
+        time.sleep_us(delay)
+    stepper_pos += steps if direct else -steps
+
+def ciclo_rueda():
+    for vuelta in range(1, 6):  # Simular 5 vueltas completas
+        update_display(f"Vuelta {vuelta}", "", "")
+        
+        for i in range(1, SILLAS + 1):
+            print(f"Cargando pasajero en silla {i}")
+            update_display("  Cargando:", "Silla", f" {i}")
+            fade_led(i, (0, 255, 0))  # Verde para carga
+            time.sleep(1.5)  # Simula el tiempo de carga
+            move_stepper(1, STEPS_PER_REV // SILLAS, 500)
+        
+        for i in range(1, SILLAS + 1):
+            print(f"Descargando pasajero en silla {i}")
+            update_display("Descargando:", "Silla", f" {i}")
+            fade_led(i, (255, 0, 0))  # Rojo para descarga
+            time.sleep(1)  # Simula el tiempo de descarga
+            move_stepper(0, STEPS_PER_REV // SILLAS, 1000)
+
+    update_display("Reiniciando...", "", "")
+    np.fill((0, 0, 0))  # Apagar todos los LEDs
+    np.write()
+    time.sleep(2)
+
+while True:
+    ciclo_rueda()
